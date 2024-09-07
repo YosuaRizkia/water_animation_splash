@@ -1,6 +1,7 @@
+import 'dart:async';
 import 'dart:math';
-
 import 'package:flutter/material.dart';
+import 'package:water_animation/start_menu.dart';
 
 class WaterAnimationScreen extends StatefulWidget {
   const WaterAnimationScreen({super.key});
@@ -10,91 +11,136 @@ class WaterAnimationScreen extends StatefulWidget {
 }
 
 class _WaterAnimationScreenState extends State<WaterAnimationScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController controller;
-  late Animation<List<Offset>> waves;
+    with TickerProviderStateMixin {
+  late AnimationController controller1;
+  late Animation<List<Offset>> waves1;
+
+  late AnimationController controller2;
+  late Animation<List<Offset>> waves2;
+
   int counter = 0;
+  Timer? timer;
 
   @override
   void initState() {
-    controller =
-        AnimationController(vsync: this, duration: const Duration(seconds: 5))
-          ..repeat(reverse: false);
-    waves = controller.drive(TweenWave(100, 20));
     super.initState();
+
+    // Initialize the first wave animation controller
+    controller1 =
+        AnimationController(vsync: this, duration: const Duration(seconds: 2))
+          ..repeat(reverse: false);
+
+    // Initialize the second wave animation controller with a different duration
+    controller2 =
+        AnimationController(vsync: this, duration: const Duration(seconds: 3))
+          ..repeat(reverse: false);
+
+    // Define the first wave animation
+    waves1 = controller1.drive(TweenWave(100, 20));
+
+    // Define the second wave animation with different parameters
+    waves2 = controller2.drive(TweenWave(100, 25));
+
+    // Start the counter automatically
+    startAutoIncrement();
   }
 
   @override
   void dispose() {
-    controller.dispose();
+    // Dispose of the timers and animation controllers
+    timer?.cancel();
+    controller1.dispose();
+    controller2.dispose();
     super.dispose();
   }
 
-  incrementCounter() {
-    setState(() {
-      counter = counter + 10;
-
-    });
-    if (counter == 110) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          backgroundColor: Colors.white,
-          content: Text(
-            'Goal Achieved',
-            style: TextStyle(color: Colors.black),
-          )));
+  // Automatically increment the counter every second
+  void startAutoIncrement() {
+    timer = Timer.periodic(const Duration(milliseconds: 300), (Timer t) {
       setState(() {
-        counter = 0;
+        counter = counter + 10;
       });
-    }
+      // Reset counter and show SnackBar when goal is reached
+      if (counter == 100) {
+        // ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        //     backgroundColor: Colors.white,
+        //     content: Text(
+        //       'Goal Achieved',
+        //       style: TextStyle(color: Colors.black),
+        //     )));
+
+        // Navigate to StartMenu after the SnackBar is shown
+        Future.delayed(const Duration(seconds: 1), () {
+          Navigator.pushReplacement(
+              context, MaterialPageRoute(builder: (context) => const StartMenu()));
+        });
+        // setState(() {
+        //   counter = 0;
+        // });
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromRGBO(46, 45, 89, 1),
-      floatingActionButton: FloatingActionButton.extended(
-          onPressed: incrementCounter,
-          backgroundColor: Colors.white,
-          icon: const Icon(
-            Icons.water_drop,
-            color: Colors.blue,
-          ),
-          label: const Text(
-            'Add Water',
-            style: TextStyle(color: Colors.black),
-          )),
+      backgroundColor: const Color.fromRGBO(253, 0, 192, 1.0),
       body: SafeArea(
-          child: Stack(
-        children: [
-          Positioned.fill(
+        child: Stack(
+          children: [
+            // First wave animation
+            Positioned.fill(
               child: TweenAnimationBuilder(
-            tween: Tween<double>(begin: 0, end: counter.toDouble()),
-            duration: const Duration(seconds: 1),
-            builder: ((context, value, child) {
-              return FractionallySizedBox(
-                heightFactor: (value / 100).clamp(0, 100).toDouble(),
-                alignment: Alignment.bottomCenter,
-                child: ClipPath(
-                  clipper: WaveClipperDesign(waves),
-                  child: CustomPaint(
-                    painter: WavePainterDesign(),
-                  ),
-                ),
-              );
-            }),
-          )),
-          Center(
-            child: Text(
-              '$counter%',
-              style: const TextStyle(
-                fontSize: 120,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+                tween: Tween<double>(begin: 0, end: counter.toDouble()),
+                duration: const Duration(milliseconds: 800),
+                builder: (context, value, child) {
+                  return FractionallySizedBox(
+                    heightFactor: (value / 100).clamp(0, 1),
+                    alignment: Alignment.bottomCenter,
+                    child: ClipPath(
+                      clipper: WaveClipperDesign(waves1),
+                      child: Container(
+                        color: Colors.white.withOpacity(0.5),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
-          )
-        ],
-      )),
+            // Second wave animation
+            Positioned.fill(
+              child: TweenAnimationBuilder(
+                tween: Tween<double>(begin: 0, end: counter.toDouble()),
+                duration: const Duration(milliseconds: 800),
+                builder: (context, value, child) {
+                  return FractionallySizedBox(
+                    heightFactor: (value / 100).clamp(0, 1),
+                    alignment: Alignment.bottomCenter,
+                    child: ClipPath(
+                      clipper: WaveClipperDesign(waves2),
+                      child: Container(
+                        color: Colors.white,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            // Counter text
+            const Center(
+              child: Text(
+                'Lemonade',
+                style: TextStyle(
+                  fontSize: 40,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Cursive',
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -122,25 +168,13 @@ class WaveClipperDesign extends CustomClipper<Path> {
   }
 }
 
-class WavePainterDesign extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRect(
-        Offset.zero & size, Paint()..color = Colors.blue.withOpacity(0.6));
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
-  }
-}
-
 class TweenWave extends Animatable<List<Offset>> {
   TweenWave(this.count, this.height);
 
   final int count;
   final double height;
   static const waveCount = 3;
+
   @override
   List<Offset> transform(double t) {
     return List<Offset>.generate(count, (index) {
